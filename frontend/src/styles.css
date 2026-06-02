@@ -1,0 +1,170 @@
+/* ================================================================
+   MEDICALAPP — Global Styles
+   ================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Palette */
+  --bg:           #F4F7F5;
+  --surface:      #FFFFFF;
+  --surface-2:    #F9FBFA;
+  --dark:         #17201B;
+  --primary:      #116B4F;
+  --primary-hover:#0B513B;
+  --accent:       #C25B2A;
+  --accent-light: #F7DED2;
+  --border:       #C9D5CF;
+  --border-light: #E1E8E4;
+  --muted:        #66736D;
+  --error:        #B42318;
+  --error-bg:     #FFF2F0;
+  --success:      #157347;
+
+  /* Typography */
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+
+  /* Spacing */
+  --radius:   6px;
+  --shadow:   0 1px 4px rgba(26, 30, 19, 0.08), 0 4px 16px rgba(26, 30, 19, 0.06);
+  --shadow-lg:0 4px 8px rgba(26, 30, 19, 0.10), 0 12px 32px rgba(26, 30, 19, 0.10);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html { font-size: 16px; }
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--bg);
+  color: var(--dark);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.6;
+}
+
+a { color: inherit; text-decoration: none; }
+button, input { font-family: inherit; }
+
+/* Shared button styles */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--primary);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 6px rgba(45, 80, 22, 0.25);
+}
+.btn-primary:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(45, 80, 22, 0.30);
+}
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+  padding: 0.625rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-secondary:hover {
+  color: var(--dark);
+  border-color: var(--dark);
+  background: var(--surface);
+}
+
+/* Spinner */
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Error banner */
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--error-bg);
+  border: 1px solid rgba(139, 37, 0, 0.2);
+  border-left: 3px solid var(--error);
+  color: var(--error);
+  border-radius: var(--radius);
+  padding: 0.875rem 1.125rem;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+  animation: fadeIn 0.2s ease;
+}
+.error-icon { font-size: 1rem; flex-shrink: 0; }
+.btn-retry {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--error);
+  color: var(--error);
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-retry:hover { background: var(--error); color: #fff; }
+
+/* State containers */
+.state-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 4rem 2rem;
+  text-align: center;
+  animation: fadeIn 0.3s ease;
+}
+.state-text {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

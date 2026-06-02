@@ -1,0 +1,183 @@
+<section class="monitor-page">
+  <div class="hero-strip">
+    <div>
+      <span class="eyebrow">UCI EN TIEMPO REAL</span>
+      <h1>MedicalApp</h1>
+      <p>Alertas medicas para pacientes criticos y monitoreo continuo de signos vitales.</p>
+    </div>
+    <div class="pulse-mark" aria-hidden="true">
+      <span></span>
+    </div>
+  </div>
+
+  @if (!auth.currentUser()) {
+    <div class="login-panel">
+      <h2>Acceso clinico protegido</h2>
+      <p>Inicia sesion con el IDaaS para monitorear pacientes y registrar lecturas.</p>
+      <button type="button" class="btn-primary" (click)="auth.login()">Entrar</button>
+    </div>
+  } @else {
+    @if (loading()) {
+      <div class="state-container">
+        <div class="spinner"></div>
+        <p class="state-text">Cargando monitor...</p>
+      </div>
+    }
+
+    @if (error()) {
+      <div class="error-banner" role="alert">
+        <span class="error-icon" aria-hidden="true">!</span>
+        <p>{{ error() }}</p>
+        <button type="button" class="btn-retry" (click)="loadDashboard()">Reintentar</button>
+      </div>
+    }
+
+    @if (dashboard(); as data) {
+      <div class="metrics">
+        <article>
+          <span>Pacientes activos</span>
+          <strong>{{ data.pacientesActivos }}</strong>
+        </article>
+        <article>
+          <span>Pacientes criticos</span>
+          <strong>{{ pacientesCriticos() }}</strong>
+        </article>
+        <article>
+          <span>Alertas abiertas</span>
+          <strong>{{ data.alertasActivas }}</strong>
+        </article>
+      </div>
+
+      <div class="monitor-grid">
+        <section class="panel pacientes-panel">
+          <div class="panel-header">
+            <h2>Pacientes UCI</h2>
+            <span>Actualizacion cada 5s</span>
+          </div>
+
+          <div class="patient-list">
+            @for (paciente of data.pacientes; track paciente.id) {
+              <article
+                class="patient-card"
+                [class.selected]="selectedPacienteId() === paciente.id"
+                (click)="selectPaciente(paciente)">
+                <div>
+                  <span class="room">{{ paciente.habitacion }}</span>
+                  <h3>{{ paciente.nombre }}</h3>
+                  <p>{{ paciente.diagnostico }}</p>
+                </div>
+                <span
+                  class="status"
+                  [class.critico]="paciente.estado === 'CRITICO'"
+                  [class.observacion]="paciente.estado === 'OBSERVACION'"
+                  [class.estable]="paciente.estado === 'ESTABLE'">
+                  {{ paciente.estado }}
+                </span>
+
+                @if (paciente.ultimoSignoVital; as vital) {
+                  <div class="vitals-mini">
+                    <span>FC {{ vital.frecuenciaCardiaca }}</span>
+                    <span>SpO2 {{ vital.saturacionOxigeno }}%</span>
+                    <span>T {{ vital.temperatura | number:'1.1-1' }} C</span>
+                  </div>
+                }
+              </article>
+            }
+          </div>
+        </section>
+
+        <section class="panel form-panel">
+          <div class="panel-header">
+            <h2>Nueva lectura</h2>
+            @if (pacienteSeleccionado(); as paciente) {
+              <span>{{ paciente.habitacion }} · {{ paciente.nombre }}</span>
+            }
+          </div>
+
+          <form [formGroup]="form" (ngSubmit)="registrarSignosVitales()" novalidate>
+            <label>
+              Paciente
+              <select formControlName="pacienteId">
+                @for (paciente of data.pacientes; track paciente.id) {
+                  <option [ngValue]="paciente.id">{{ paciente.habitacion }} - {{ paciente.nombre }}</option>
+                }
+              </select>
+            </label>
+
+            <div class="form-row">
+              <label>
+                Frecuencia cardiaca
+                <input type="number" formControlName="frecuenciaCardiaca" min="20" max="240">
+                @if (hasError('frecuenciaCardiaca')) { <span>20 a 240 lpm</span> }
+              </label>
+              <label>
+                Saturacion O2
+                <input type="number" formControlName="saturacionOxigeno" min="50" max="100">
+                @if (hasError('saturacionOxigeno')) { <span>50 a 100%</span> }
+              </label>
+            </div>
+
+            <div class="form-row">
+              <label>
+                Presion sistolica
+                <input type="number" formControlName="presionSistolica" min="50" max="260">
+                @if (hasError('presionSistolica')) { <span>50 a 260 mmHg</span> }
+              </label>
+              <label>
+                Presion diastolica
+                <input type="number" formControlName="presionDiastolica" min="30" max="180">
+                @if (hasError('presionDiastolica')) { <span>30 a 180 mmHg</span> }
+              </label>
+            </div>
+
+            <div class="form-row">
+              <label>
+                Temperatura
+                <input type="number" step="0.1" formControlName="temperatura" min="30" max="45">
+                @if (hasError('temperatura')) { <span>30 a 45 C</span> }
+              </label>
+              <label>
+                Frecuencia respiratoria
+                <input type="number" formControlName="frecuenciaRespiratoria" min="4" max="60">
+                @if (hasError('frecuenciaRespiratoria')) { <span>4 a 60 rpm</span> }
+              </label>
+            </div>
+
+            <button type="submit" class="btn-primary" [disabled]="saving()">
+              {{ saving() ? 'Registrando...' : 'Registrar signos vitales' }}
+            </button>
+          </form>
+        </section>
+
+        <section class="panel alerts-panel">
+          <div class="panel-header">
+            <h2>Alertas activas</h2>
+            <span>{{ data.alertas.length }} recientes</span>
+          </div>
+
+          @if (data.alertas.length === 0) {
+            <div class="empty-alerts">No hay alertas abiertas.</div>
+          } @else {
+            <div class="alerts-list">
+              @for (alerta of data.alertas; track alerta.id) {
+                <article
+                  class="alert-card"
+                  [class.severity-alta]="alerta.severidad === 'ALTA'"
+                  [class.severity-media]="alerta.severidad === 'MEDIA'"
+                  [class.severity-baja]="alerta.severidad === 'BAJA'">
+                  <div>
+                    <span>{{ alerta.habitacion }} · {{ alerta.severidad }}</span>
+                    <h3>{{ alerta.tipo }}</h3>
+                    <p>{{ alerta.pacienteNombre }} — {{ alerta.mensaje }}</p>
+                    <time>{{ alerta.fechaRegistro | date:'short' }}</time>
+                  </div>
+                  <button type="button" class="btn-secondary" (click)="atenderAlerta(alerta.id)">Atender</button>
+                </article>
+              }
+            </div>
+          }
+        </section>
+      </div>
+    }
+  }
+</section>

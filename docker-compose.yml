@@ -1,0 +1,26 @@
+services:
+  medicalapp:
+    build: .
+    container_name: medicalapp
+    restart: unless-stopped
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@dbbooks_high?TNS_ADMIN=/app/wallet
+      SPRING_DATASOURCE_USERNAME: ${ORACLE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${ORACLE_PASSWORD}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: oracle.jdbc.OracleDriver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.OracleDialect
+      IDP_ISSUER_URI: ${IDP_ISSUER_URI}
+      IDP_JWK_SET_URI: ${IDP_JWK_SET_URI}
+      MEDICALAPP_API_MANAGER_REQUIRED: ${MEDICALAPP_API_MANAGER_REQUIRED:-false}
+      MEDICALAPP_API_MANAGER_SUBSCRIPTION_KEY: ${MEDICALAPP_API_MANAGER_SUBSCRIPTION_KEY}
+      ORACLE_WALLET_BASE64: ${ORACLE_WALLET_BASE64}
+    expose:
+      - 8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

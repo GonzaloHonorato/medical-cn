@@ -1,0 +1,80 @@
+<div class="layout">
+
+  <header class="site-header">
+    <div class="header-inner">
+
+      <a routerLink="/" class="logo">
+        <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M6 10h20l-2 16H8L6 10Z" fill="currentColor" opacity="0.25"/>
+          <path d="M10 10a6 6 0 0 1 12 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M9 14h14l-1 9H10l-1-9Z" fill="currentColor"/>
+        </svg>
+        <span class="logo-wordmark">MedicalApp</span>
+      </a>
+
+      <nav class="nav">
+        <a routerLink="/"
+           routerLinkActive="nav-active"
+           [routerLinkActiveOptions]="{ exact: true }"
+           class="nav-link">
+          Alertas
+        </a>
+
+        @if (auth.currentUser(); as user) {
+          <span class="auth-user" [title]="user.email || user.username">
+            {{ user.name || user.email || user.username }}
+          </span>
+          <button type="button" class="auth-button" (click)="auth.logout()">
+            Salir
+          </button>
+        } @else {
+          <button
+            type="button"
+            class="auth-button auth-button-primary"
+            (click)="auth.login()">
+            Entrar
+          </button>
+        }
+      </nav>
+
+    </div>
+
+    @if (auth.errorMessage()) {
+      <div class="auth-error">
+        {{ auth.errorMessage() }}
+      </div>
+    }
+  </header>
+
+  <main class="main-content">
+    @if (auth.currentUser(); as user) {
+      <section class="auth-session">
+        <div>
+          <span class="auth-session-label">Sesion IDaaS activa</span>
+          <strong>{{ user.name || user.email || user.username }}</strong>
+          @if (user.email && user.email !== user.name) {
+            <span class="auth-session-email">{{ user.email }}</span>
+          }
+        </div>
+
+        @if (auth.idToken()) {
+          <details>
+            <summary>Ver ID token</summary>
+            <textarea readonly rows="8">{{ auth.idToken() }}</textarea>
+          </details>
+        }
+      </section>
+    }
+
+    <router-outlet />
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <span class="footer-brand">MedicalApp</span>
+      <span class="footer-sep" aria-hidden="true">·</span>
+      <span class="footer-copy">Monitoreo de pacientes criticos</span>
+    </div>
+  </footer>
+
+</div>

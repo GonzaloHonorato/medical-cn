@@ -1,0 +1,39 @@
+# Maven
+target/
+*.jar
+*.war
+*.ear
+*.class
+.mvn/wrapper/maven-wrapper.jar
+
+# Oracle wallet
+**/wallet/
+*.sso
+*.p12
+*.pem
+*.jks
+ojdbc.properties
+sqlnet.ora
+tnsnames.ora
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs / env
+*.log
+.env
+.env.*
