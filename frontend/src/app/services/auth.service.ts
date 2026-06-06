@@ -6,6 +6,7 @@ import {
   PublicClientApplication
 } from '@azure/msal-browser';
 import { authConfig } from '../auth.config';
+import { RuntimeConfigService } from './runtime-config.service';
 
 export interface AuthenticatedUser {
   name: string;
@@ -18,6 +19,7 @@ export class AuthService {
   readonly currentUser = signal<AuthenticatedUser | null>(null);
   readonly userName = signal('');
   readonly idToken = signal('');
+  readonly accessToken = signal('');
   readonly errorMessage = signal('');
   readonly isReady = signal(false);
 
@@ -25,7 +27,10 @@ export class AuthService {
   private initializePromise: Promise<void> | null = null;
   private readonly isBrowser: boolean;
 
-  constructor(@Inject(PLATFORM_ID) platformId: object) {
+  constructor(
+    @Inject(PLATFORM_ID) platformId: object,
+    private runtimeConfig: RuntimeConfigService
+  ) {
     this.isBrowser = isPlatformBrowser(platformId);
 
     if (this.isBrowser) {
@@ -78,7 +83,7 @@ export class AuthService {
 
     try {
       await this.msalInstance.loginRedirect({
-        scopes: ['openid', 'profile']
+        scopes: this.runtimeConfig.scopes()
       });
     } catch (error) {
       console.error(error);
@@ -104,6 +109,7 @@ export class AuthService {
     this.msalInstance?.setActiveAccount(response.account);
     this.setUserFromAccount(response.account);
     this.idToken.set(response.idToken);
+    this.accessToken.set(response.accessToken);
   }
 
   private setUserFromAccount(account: AccountInfo | null): void {
@@ -162,10 +168,11 @@ export class AuthService {
     try {
       const response = await this.msalInstance.acquireTokenSilent({
         account,
-        scopes: ['openid', 'profile']
+        scopes: this.runtimeConfig.scopes()
       });
 
       this.idToken.set(response.idToken);
+      this.accessToken.set(response.accessToken);
     } catch (error) {
       console.warn('No se pudo obtener el token en silencio', error);
     }

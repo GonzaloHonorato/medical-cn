@@ -37,7 +37,16 @@ IDP_ISSUER_URI=https://ghdevcompany.b2clogin.com/ac1dbc9b-27a4-4004-a719-42d96af
 IDP_JWK_SET_URI=https://ghdevcompany.b2clogin.com/ghdevcompany.onmicrosoft.com/b2c_1_dn-gh/discovery/v2.0/keys
 MEDICALAPP_API_MANAGER_REQUIRED=false
 MEDICALAPP_API_MANAGER_SUBSCRIPTION_KEY=dev-medicalapp-key
+MEDICALAPP_FRONTEND_API_BASE_URL=https://v65ti3zvxj.execute-api.us-east-1.amazonaws.com/deves1
+MEDICALAPP_AUTH_SCOPES=openid profile
 ```
+
+`MEDICALAPP_FRONTEND_API_BASE_URL` controla a que API llama Angular:
+
+- Vacio: usa el BFF directo del mismo dominio, por ejemplo `/api/dashboard`.
+- Con AWS API Gateway: usa la URL configurada, por ejemplo `https://v65ti3zvxj.execute-api.us-east-1.amazonaws.com/deves1/api/dashboard`.
+
+`MEDICALAPP_AUTH_SCOPES` permite pedir un access token para API Gateway. Si Azure exige un scope expuesto, reemplaza el valor por `openid profile api://.../scope`.
 
 ## Base de datos
 
