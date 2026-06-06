@@ -46,7 +46,7 @@ MEDICALAPP_AUTH_SCOPES=openid profile
 - Vacio: usa el BFF directo del mismo dominio, por ejemplo `/api/dashboard`.
 - Con AWS API Gateway: usa la URL configurada, por ejemplo `https://v65ti3zvxj.execute-api.us-east-1.amazonaws.com/deves1/api/dashboard`.
 
-`MEDICALAPP_AUTH_SCOPES` permite pedir un access token para API Gateway. Si Azure exige un scope expuesto, reemplaza el valor por `openid profile api://.../scope`.
+`MEDICALAPP_AUTH_SCOPES` debe quedar en `openid profile` para mantener el flujo validado con Azure B2C. El frontend envia el ID token como `Authorization: Bearer <token>`.
 
 ## Base de datos
 

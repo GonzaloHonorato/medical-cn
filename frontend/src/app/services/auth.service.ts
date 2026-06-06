@@ -6,7 +6,6 @@ import {
   PublicClientApplication
 } from '@azure/msal-browser';
 import { authConfig } from '../auth.config';
-import { RuntimeConfigService } from './runtime-config.service';
 
 export interface AuthenticatedUser {
   name: string;
@@ -19,18 +18,15 @@ export class AuthService {
   readonly currentUser = signal<AuthenticatedUser | null>(null);
   readonly userName = signal('');
   readonly idToken = signal('');
-  readonly accessToken = signal('');
   readonly errorMessage = signal('');
   readonly isReady = signal(false);
 
   private msalInstance: PublicClientApplication | null = null;
   private initializePromise: Promise<void> | null = null;
+  private readonly loginScopes = ['openid', 'profile'];
   private readonly isBrowser: boolean;
 
-  constructor(
-    @Inject(PLATFORM_ID) platformId: object,
-    private runtimeConfig: RuntimeConfigService
-  ) {
+  constructor(@Inject(PLATFORM_ID) platformId: object) {
     this.isBrowser = isPlatformBrowser(platformId);
 
     if (this.isBrowser) {
@@ -83,7 +79,7 @@ export class AuthService {
 
     try {
       await this.msalInstance.loginRedirect({
-        scopes: this.runtimeConfig.scopes()
+        scopes: this.loginScopes
       });
     } catch (error) {
       console.error(error);
@@ -101,28 +97,6 @@ export class AuthService {
     });
   }
 
-  async getApiToken(): Promise<string> {
-    const account = this.msalInstance?.getActiveAccount();
-
-    if (!this.msalInstance || !account) {
-      return this.accessToken() || this.idToken();
-    }
-
-    try {
-      const response = await this.msalInstance.acquireTokenSilent({
-        account,
-        scopes: this.runtimeConfig.scopes()
-      });
-
-      this.idToken.set(response.idToken);
-      this.accessToken.set(response.accessToken);
-      return response.accessToken || response.idToken;
-    } catch (error) {
-      console.warn('No se pudo obtener access token para API, se usara el token disponible.', error);
-      return this.accessToken() || this.idToken();
-    }
-  }
-
   private applyAuthenticationResult(response: AuthenticationResult | null): void {
     if (!response) {
       return;
@@ -131,7 +105,6 @@ export class AuthService {
     this.msalInstance?.setActiveAccount(response.account);
     this.setUserFromAccount(response.account);
     this.idToken.set(response.idToken);
-    this.accessToken.set(response.accessToken);
   }
 
   private setUserFromAccount(account: AccountInfo | null): void {
@@ -190,11 +163,10 @@ export class AuthService {
     try {
       const response = await this.msalInstance.acquireTokenSilent({
         account,
-        scopes: this.runtimeConfig.scopes()
+        scopes: this.loginScopes
       });
 
       this.idToken.set(response.idToken);
-      this.accessToken.set(response.accessToken);
     } catch (error) {
       console.warn('No se pudo obtener el token en silencio', error);
     }
