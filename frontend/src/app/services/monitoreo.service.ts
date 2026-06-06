@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, from, switchMap } from 'rxjs';
 import { AuthService } from './auth.service';
 import { RuntimeConfigService } from './runtime-config.service';
 import { DashboardMedico, SignoVital, SignoVitalRequest } from '../models/monitoreo.model';
@@ -12,25 +12,31 @@ export class MonitoreoService {
   private runtimeConfig = inject(RuntimeConfigService);
 
   getDashboard(): Observable<DashboardMedico> {
-    return this.http.get<DashboardMedico>(this.runtimeConfig.apiUrl('/api/dashboard'), {
-      headers: this.authHeaders()
-    });
+    return from(this.authHeaders()).pipe(
+      switchMap(headers =>
+        this.http.get<DashboardMedico>(this.runtimeConfig.apiUrl('/api/dashboard'), { headers })
+      )
+    );
   }
 
   registrarSignosVitales(request: SignoVitalRequest): Observable<SignoVital> {
-    return this.http.post<SignoVital>(this.runtimeConfig.apiUrl('/api/signos-vitales'), request, {
-      headers: this.authHeaders()
-    });
+    return from(this.authHeaders()).pipe(
+      switchMap(headers =>
+        this.http.post<SignoVital>(this.runtimeConfig.apiUrl('/api/signos-vitales'), request, { headers })
+      )
+    );
   }
 
   atenderAlerta(id: number): Observable<void> {
-    return this.http.patch<void>(this.runtimeConfig.apiUrl(`/api/alertas/${id}/atender`), null, {
-      headers: this.authHeaders()
-    });
+    return from(this.authHeaders()).pipe(
+      switchMap(headers =>
+        this.http.patch<void>(this.runtimeConfig.apiUrl(`/api/alertas/${id}/atender`), null, { headers })
+      )
+    );
   }
 
-  private authHeaders(): HttpHeaders {
-    const token = this.auth.accessToken() || this.auth.idToken();
+  private async authHeaders(): Promise<HttpHeaders> {
+    const token = await this.auth.getApiToken();
     return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
   }
 }

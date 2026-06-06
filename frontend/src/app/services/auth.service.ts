@@ -101,6 +101,28 @@ export class AuthService {
     });
   }
 
+  async getApiToken(): Promise<string> {
+    const account = this.msalInstance?.getActiveAccount();
+
+    if (!this.msalInstance || !account) {
+      return this.accessToken() || this.idToken();
+    }
+
+    try {
+      const response = await this.msalInstance.acquireTokenSilent({
+        account,
+        scopes: this.runtimeConfig.scopes()
+      });
+
+      this.idToken.set(response.idToken);
+      this.accessToken.set(response.accessToken);
+      return response.accessToken || response.idToken;
+    } catch (error) {
+      console.warn('No se pudo obtener access token para API, se usara el token disponible.', error);
+      return this.accessToken() || this.idToken();
+    }
+  }
+
   private applyAuthenticationResult(response: AuthenticationResult | null): void {
     if (!response) {
       return;
