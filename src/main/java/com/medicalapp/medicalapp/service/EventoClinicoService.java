@@ -10,6 +10,8 @@ import com.medicalapp.medicalapp.repository.AlertaMedicaRepository;
 import com.medicalapp.medicalapp.repository.EventoClinicoRepository;
 import com.medicalapp.medicalapp.repository.PacienteRepository;
 import com.medicalapp.medicalapp.websocket.EventosClinicosWebSocketHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,8 @@ import java.util.List;
 
 @Service
 public class EventoClinicoService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(EventoClinicoService.class);
 
     private final EventoClinicoRepository eventoClinicoRepository;
     private final PacienteRepository pacienteRepository;
@@ -75,6 +79,12 @@ public class EventoClinicoService {
 
         EventoClinicoResponse response = mapEvento(evento);
         webSocketHandler.broadcast(response);
+        LOGGER.info(
+                "Evento clinico {} guardado desde RabbitMQ para paciente {} con severidad {}",
+                response.id(),
+                response.pacienteNombre(),
+                response.severidad()
+        );
         return response;
     }
 
