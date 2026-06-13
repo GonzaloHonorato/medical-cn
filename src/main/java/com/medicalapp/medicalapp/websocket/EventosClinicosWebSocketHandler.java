@@ -2,6 +2,8 @@ package com.medicalapp.medicalapp.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medicalapp.medicalapp.dto.EventoClinicoResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -15,6 +17,8 @@ import java.util.concurrent.CopyOnWriteArraySet;
 @Component
 public class EventosClinicosWebSocketHandler extends TextWebSocketHandler {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(EventosClinicosWebSocketHandler.class);
+
     private final ObjectMapper objectMapper;
     private final Set<WebSocketSession> sessions = new CopyOnWriteArraySet<>();
 
@@ -25,11 +29,17 @@ public class EventosClinicosWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         sessions.add(session);
+        LOGGER.info("Cliente WebSocket conectado a eventos clinicos. sesionesActivas={}", sessions.size());
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         sessions.remove(session);
+        LOGGER.info(
+                "Cliente WebSocket desconectado de eventos clinicos. sesionesActivas={}, estado={}",
+                sessions.size(),
+                status
+        );
     }
 
     public void broadcast(EventoClinicoResponse evento) {
@@ -39,6 +49,8 @@ public class EventosClinicosWebSocketHandler extends TextWebSocketHandler {
             for (WebSocketSession session : sessions) {
                 sendIfOpen(session, message);
             }
+
+            LOGGER.info("Evento clinico enviado por WebSocket a {} cliente(s).", sessions.size());
         } catch (IOException exception) {
             throw new IllegalStateException("No se pudo serializar el evento clinico.", exception);
         }
