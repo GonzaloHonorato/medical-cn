@@ -1,0 +1,25 @@
+package com.medicalapp.medicalapp.config;
+
+import com.medicalapp.medicalapp.websocket.EventosClinicosWebSocketHandler;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.socket.config.annotation.EnableWebSocket;
+import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+
+@Configuration
+@EnableWebSocket
+public class WebSocketConfig implements WebSocketConfigurer {
+
+    private final EventosClinicosWebSocketHandler eventosClinicosWebSocketHandler;
+
+    public WebSocketConfig(EventosClinicosWebSocketHandler eventosClinicosWebSocketHandler) {
+        this.eventosClinicosWebSocketHandler = eventosClinicosWebSocketHandler;
+    }
+
+    @Override
+    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+        registry
+                .addHandler(eventosClinicosWebSocketHandler, "/ws/eventos-clinicos")
+                .setAllowedOriginPatterns("*");
+    }
+}

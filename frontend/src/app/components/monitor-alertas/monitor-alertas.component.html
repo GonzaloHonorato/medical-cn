@@ -177,6 +177,44 @@
             </div>
           }
         </section>
+
+        <section class="panel events-panel">
+          <div class="panel-header">
+            <h2>Eventos en vivo</h2>
+            <span>RabbitMQ + WebSocket</span>
+          </div>
+
+          @if (eventosClinicos().length === 0) {
+            <div class="empty-alerts">No hay eventos clinicos recibidos desde la cola.</div>
+          } @else {
+            <div class="events-list">
+              @for (evento of eventosClinicos(); track evento.id) {
+                <article
+                  class="event-card"
+                  [class.severity-alta]="evento.severidad === 'ALTA'"
+                  [class.severity-media]="evento.severidad === 'MEDIA'"
+                  [class.severity-baja]="evento.severidad === 'BAJA'">
+                  <div class="event-main">
+                    <div>
+                      <span class="event-source">{{ evento.origen }}</span>
+                      <h3>{{ evento.tipo }}</h3>
+                    </div>
+                    <span class="event-severity">{{ eventSeverityLabel(evento.severidad) }}</span>
+                  </div>
+
+                  <p>{{ evento.habitacion }} · {{ evento.pacienteNombre }} — {{ evento.mensaje }}</p>
+
+                  <div class="event-meta">
+                    @if (evento.valor) {
+                      <span>{{ evento.valor }}</span>
+                    }
+                    <time>{{ evento.fechaRecepcion | date:'shortTime' }}</time>
+                  </div>
+                </article>
+              }
+            </div>
+          }
+        </section>
       </div>
     }
   }

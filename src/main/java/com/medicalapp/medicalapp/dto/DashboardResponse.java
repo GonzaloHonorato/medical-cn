@@ -6,6 +6,7 @@ public record DashboardResponse(
         long pacientesActivos,
         long alertasActivas,
         List<ResumenPacienteResponse> pacientes,
-        List<AlertaResponse> alertas
+        List<AlertaResponse> alertas,
+        List<EventoClinicoResponse> eventos
 ) {
 }

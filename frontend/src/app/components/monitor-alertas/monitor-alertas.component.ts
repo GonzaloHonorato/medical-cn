@@ -1,9 +1,11 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
+import { EventosClinicosSocketService } from '../../services/eventos-clinicos-socket.service';
 import { MonitoreoService } from '../../services/monitoreo.service';
-import { DashboardMedico, PacienteResumen, SeveridadAlerta } from '../../models/monitoreo.model';
+import { DashboardMedico, EventoClinico, PacienteResumen, SeveridadAlerta } from '../../models/monitoreo.model';
 
 @Component({
   selector: 'app-monitor-alertas',
@@ -14,15 +16,18 @@ import { DashboardMedico, PacienteResumen, SeveridadAlerta } from '../../models/
 })
 export class MonitorAlertasComponent implements OnInit, OnDestroy {
   private monitoreoService = inject(MonitoreoService);
+  private eventosSocketService = inject(EventosClinicosSocketService);
   private fb = inject(FormBuilder);
   readonly auth = inject(AuthService);
 
   dashboard = signal<DashboardMedico | null>(null);
+  eventosClinicos = signal<EventoClinico[]>([]);
   loading = signal(false);
   saving = signal(false);
   error = signal<string | null>(null);
   selectedPacienteId = signal<number | null>(null);
   private refreshTimer: number | null = null;
+  private eventosSocketSubscription: Subscription | null = null;
 
   pacientesCriticos = computed(() =>
     this.dashboard()?.pacientes.filter(paciente => paciente.estado === 'CRITICO').length ?? 0
@@ -45,11 +50,13 @@ export class MonitorAlertasComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     if (this.canLoadProtectedData()) {
       this.loadDashboard();
+      this.connectEventosClinicos();
     }
 
     this.refreshTimer = window.setInterval(() => {
       if (this.canLoadProtectedData()) {
         this.loadDashboard(false);
+        this.connectEventosClinicos();
       }
     }, 5000);
   }
@@ -58,6 +65,8 @@ export class MonitorAlertasComponent implements OnInit, OnDestroy {
     if (this.refreshTimer) {
       window.clearInterval(this.refreshTimer);
     }
+
+    this.eventosSocketSubscription?.unsubscribe();
   }
 
   loadDashboard(showLoading = true): void {
@@ -69,6 +78,7 @@ export class MonitorAlertasComponent implements OnInit, OnDestroy {
     this.monitoreoService.getDashboard().subscribe({
       next: dashboard => {
         this.dashboard.set(dashboard);
+        this.mergeEventos(dashboard.eventos);
         this.loading.set(false);
 
         if (!this.selectedPacienteId() && dashboard.pacientes.length > 0) {
@@ -128,6 +138,16 @@ export class MonitorAlertasComponent implements OnInit, OnDestroy {
     return `severity-${severidad.toLowerCase()}`;
   }
 
+  eventSeverityLabel(severidad: SeveridadAlerta): string {
+    const labels: Record<SeveridadAlerta, string> = {
+      ALTA: 'Critico',
+      MEDIA: 'Atencion',
+      BAJA: 'Informativo'
+    };
+
+    return labels[severidad];
+  }
+
   hasError(field: string): boolean {
     const control = this.form.get(field);
     return !!(control?.invalid && control?.touched);
@@ -135,5 +155,38 @@ export class MonitorAlertasComponent implements OnInit, OnDestroy {
 
   private canLoadProtectedData(): boolean {
     return this.auth.isReady() && !!this.auth.currentUser() && !!this.auth.idToken();
+  }
+
+  private connectEventosClinicos(): void {
+    if (this.eventosSocketSubscription) {
+      return;
+    }
+
+    this.eventosSocketSubscription = this.eventosSocketService.connect().subscribe({
+      next: evento => this.mergeEventos([evento]),
+      error: () => {
+        this.eventosSocketSubscription = null;
+      },
+      complete: () => {
+        this.eventosSocketSubscription = null;
+      }
+    });
+  }
+
+  private mergeEventos(eventos: EventoClinico[]): void {
+    const merged = [...eventos, ...this.eventosClinicos()];
+    const unique = new Map<number, EventoClinico>();
+
+    for (const evento of merged) {
+      unique.set(evento.id, evento);
+    }
+
+    this.eventosClinicos.set(
+      Array.from(unique.values())
+        .sort((left, right) =>
+          new Date(right.fechaRecepcion).getTime() - new Date(left.fechaRecepcion).getTime()
+        )
+        .slice(0, 20)
+    );
   }
 }

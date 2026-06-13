@@ -28,6 +28,20 @@ export class RuntimeConfigService {
     return `${this.apiBaseUrl}${normalizedPath}`;
   }
 
+  wsUrl(path: string): string {
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+    if (this.apiBaseUrl) {
+      const url = new URL(this.apiBaseUrl);
+      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+      url.pathname = `${url.pathname.replace(/\/$/, '')}${normalizedPath}`;
+      return url.toString();
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}${normalizedPath}`;
+  }
+
   scopes(): string[] {
     return this.authScopes;
   }

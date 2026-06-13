@@ -3,7 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AuthService } from './auth.service';
 import { RuntimeConfigService } from './runtime-config.service';
-import { DashboardMedico, SignoVital, SignoVitalRequest } from '../models/monitoreo.model';
+import { DashboardMedico, EventoClinico, SignoVital, SignoVitalRequest } from '../models/monitoreo.model';
 
 @Injectable({ providedIn: 'root' })
 export class MonitoreoService {
@@ -25,6 +25,12 @@ export class MonitoreoService {
 
   atenderAlerta(id: number): Observable<void> {
     return this.http.patch<void>(this.runtimeConfig.apiUrl(`/api/alertas/${id}/atender`), null, {
+      headers: this.authHeaders()
+    });
+  }
+
+  getEventosClinicos(): Observable<EventoClinico[]> {
+    return this.http.get<EventoClinico[]>(this.runtimeConfig.apiUrl('/api/eventos-clinicos'), {
       headers: this.authHeaders()
     });
   }

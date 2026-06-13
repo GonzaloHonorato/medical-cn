@@ -8,11 +8,13 @@ Sistema de alertas medicas en tiempo real para monitoreo de pacientes criticos.
 - BFF Spring Boot protegido por JWT en `/api/**`.
 - Proteccion API Manager configurable en el BFF. Para la entrega final se integrara con AWS API Gateway.
 - Persistencia Oracle para pacientes, signos vitales y alertas. Los usuarios viven en el IDaaS, no en Oracle.
+- Cola RabbitMQ para eventos clinicos asincronos consumidos por Spring Boot y notificados a Angular por WebSocket.
 
 ## Endpoints BFF
 
 - `GET /api/dashboard`: resumen de pacientes, ultimas lecturas y alertas activas.
 - `GET /api/alertas`: lista de alertas abiertas.
+- `GET /api/eventos-clinicos`: lista de eventos clinicos recibidos desde RabbitMQ.
 - `PATCH /api/alertas/{id}/atender`: marca una alerta como atendida.
 - `POST /api/signos-vitales`: registra una lectura y genera alertas segun umbrales.
 
@@ -39,6 +41,11 @@ MEDICALAPP_API_MANAGER_REQUIRED=false
 MEDICALAPP_API_MANAGER_SUBSCRIPTION_KEY=dev-medicalapp-key
 MEDICALAPP_FRONTEND_API_BASE_URL=https://v65ti3zvxj.execute-api.us-east-1.amazonaws.com/deves1
 MEDICALAPP_AUTH_SCOPES=openid profile
+RABBITMQ_USERNAME=medicalapp
+RABBITMQ_PASSWORD=medicalapp
+MEDICALAPP_RABBITMQ_QUEUE=medicalapp.eventos-clinicos
+MEDICALAPP_RABBITMQ_EXCHANGE=medicalapp.exchange
+MEDICALAPP_RABBITMQ_ROUTING_KEY=eventos.clinicos
 ```
 
 `MEDICALAPP_FRONTEND_API_BASE_URL` controla a que API llama Angular:
@@ -50,5 +57,31 @@ MEDICALAPP_AUTH_SCOPES=openid profile
 
 ## Base de datos
 
-Spring puede crear las tablas `MED_PACIENTES`, `MED_SIGNOS_VITALES` y `MED_ALERTAS` con `spring.jpa.hibernate.ddl-auto=update`.
+Spring puede crear las tablas `MED_PACIENTES`, `MED_SIGNOS_VITALES`, `MED_ALERTAS` y `MED_EVENTOS_CLINICOS` con `spring.jpa.hibernate.ddl-auto=update`.
 Tambien se incluyen scripts explicitos en `database/schema.sql` y `database/seed.sql`.
+
+## RabbitMQ y WebSocket
+
+`docker-compose.yml` levanta RabbitMQ con consola en `http://localhost:15672`.
+Credenciales por defecto: `medicalapp / medicalapp`.
+
+Para probar desde la interfaz de RabbitMQ:
+
+1. Entrar a `Exchanges`.
+2. Seleccionar `medicalapp.exchange`.
+3. Publicar con routing key `eventos.clinicos`.
+4. Usar un payload JSON como:
+
+```json
+{
+  "pacienteId": 1,
+  "tipo": "SATURACION_CRITICA",
+  "origen": "Monitor UCI",
+  "mensaje": "Saturacion de oxigeno bajo 88%",
+  "severidad": "ALTA",
+  "valor": "88%",
+  "fechaEvento": "2026-06-13T14:20:00-04:00"
+}
+```
+
+Spring Boot consume la cola `medicalapp.eventos-clinicos`, guarda el evento en Oracle y lo transmite a Angular por `/ws/eventos-clinicos`.

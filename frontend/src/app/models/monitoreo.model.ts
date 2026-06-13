@@ -37,11 +37,26 @@ export interface AlertaMedica {
   fechaRegistro: string;
 }
 
+export interface EventoClinico {
+  id: number;
+  pacienteId: number | null;
+  pacienteNombre: string;
+  habitacion: string;
+  tipo: string;
+  origen: string;
+  mensaje: string;
+  severidad: SeveridadAlerta;
+  valor: string | null;
+  fechaEvento: string;
+  fechaRecepcion: string;
+}
+
 export interface DashboardMedico {
   pacientesActivos: number;
   alertasActivas: number;
   pacientes: PacienteResumen[];
   alertas: AlertaMedica[];
+  eventos: EventoClinico[];
 }
 
 export interface SignoVitalRequest {

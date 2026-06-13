@@ -26,15 +26,18 @@ public class MonitoreoMedicoService {
     private final PacienteRepository pacienteRepository;
     private final SignoVitalRepository signoVitalRepository;
     private final AlertaMedicaRepository alertaMedicaRepository;
+    private final EventoClinicoService eventoClinicoService;
 
     public MonitoreoMedicoService(
             PacienteRepository pacienteRepository,
             SignoVitalRepository signoVitalRepository,
-            AlertaMedicaRepository alertaMedicaRepository
+            AlertaMedicaRepository alertaMedicaRepository,
+            EventoClinicoService eventoClinicoService
     ) {
         this.pacienteRepository = pacienteRepository;
         this.signoVitalRepository = signoVitalRepository;
         this.alertaMedicaRepository = alertaMedicaRepository;
+        this.eventoClinicoService = eventoClinicoService;
     }
 
     public DashboardResponse obtenerDashboard() {
@@ -51,7 +54,8 @@ public class MonitoreoMedicoService {
                 pacientes.size(),
                 alertaMedicaRepository.countByAtendidaFalse(),
                 resumenes,
-                alertas
+                alertas,
+                eventoClinicoService.obtenerEventosRecientes()
         );
     }
 

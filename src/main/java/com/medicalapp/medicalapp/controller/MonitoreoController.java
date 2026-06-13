@@ -2,8 +2,10 @@ package com.medicalapp.medicalapp.controller;
 
 import com.medicalapp.medicalapp.dto.AlertaResponse;
 import com.medicalapp.medicalapp.dto.DashboardResponse;
+import com.medicalapp.medicalapp.dto.EventoClinicoResponse;
 import com.medicalapp.medicalapp.dto.SignoVitalRequest;
 import com.medicalapp.medicalapp.dto.SignoVitalResponse;
+import com.medicalapp.medicalapp.service.EventoClinicoService;
 import com.medicalapp.medicalapp.service.MonitoreoMedicoService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,9 +23,14 @@ import java.util.List;
 public class MonitoreoController {
 
     private final MonitoreoMedicoService monitoreoMedicoService;
+    private final EventoClinicoService eventoClinicoService;
 
-    public MonitoreoController(MonitoreoMedicoService monitoreoMedicoService) {
+    public MonitoreoController(
+            MonitoreoMedicoService monitoreoMedicoService,
+            EventoClinicoService eventoClinicoService
+    ) {
         this.monitoreoMedicoService = monitoreoMedicoService;
+        this.eventoClinicoService = eventoClinicoService;
     }
 
     @GetMapping("/dashboard")
@@ -34,6 +41,11 @@ public class MonitoreoController {
     @GetMapping("/alertas")
     public ResponseEntity<List<AlertaResponse>> obtenerAlertas() {
         return ResponseEntity.ok(monitoreoMedicoService.obtenerAlertasActivas());
+    }
+
+    @GetMapping("/eventos-clinicos")
+    public ResponseEntity<List<EventoClinicoResponse>> obtenerEventosClinicos() {
+        return ResponseEntity.ok(eventoClinicoService.obtenerEventosRecientes());
     }
 
     @PatchMapping("/alertas/{id}/atender")
