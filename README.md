@@ -17,6 +17,7 @@ Sistema de alertas medicas en tiempo real para monitoreo de pacientes criticos.
 - `GET /api/eventos-clinicos`: lista de eventos clinicos recibidos desde RabbitMQ.
 - `PATCH /api/alertas/{id}/atender`: marca una alerta como atendida.
 - `POST /api/signos-vitales`: registra una lectura y genera alertas segun umbrales.
+- `POST /public/eventos-clinicos`: productor publico que publica un evento en RabbitMQ.
 
 ## Desarrollo local
 
@@ -85,3 +86,27 @@ Para probar desde la interfaz de RabbitMQ:
 ```
 
 Spring Boot consume la cola `medicalapp.eventos-clinicos`, guarda el evento en Oracle y lo transmite a Angular por `/ws/eventos-clinicos`.
+
+### Productor HTTP publico
+
+El endpoint productor no requiere JWT. Responde `202 Accepted` porque el guardado y la
+notificacion ocurren de forma asincrona en el consumidor RabbitMQ.
+
+```bash
+curl -X POST https://medicalapp-cn.adndigital.cl/public/eventos-clinicos \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "pacienteId": 1,
+    "tipo": "SATURACION_CRITICA",
+    "origen": "Postman",
+    "mensaje": "Saturacion de oxigeno bajo 88%",
+    "severidad": "ALTA",
+    "valor": "88%"
+  }'
+```
+
+Flujo completo:
+
+```text
+POST publico -> exchange -> cola -> @RabbitListener -> Oracle -> WebSocket -> Angular
+```

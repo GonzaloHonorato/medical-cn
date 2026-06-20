@@ -29,6 +29,8 @@ public class SecurityConfig {
                                 "/",
                                 "/index.html",
                                 "/frontend-config.json",
+                                "/public/eventos-clinicos",
+                                "/ws/eventos-clinicos",
                                 "/assets/**",
                                 "/*.js",
                                 "/*.css",
