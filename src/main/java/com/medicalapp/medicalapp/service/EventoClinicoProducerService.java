@@ -27,7 +27,7 @@ public class EventoClinicoProducerService {
             RabbitTemplate rabbitTemplate,
             ObjectMapper objectMapper,
             @Value("${medicalapp.rabbitmq.exchange}") String exchange,
-            @Value("${medicalapp.rabbitmq.routing-key}") String routingKey
+            @Value("${medicalapp.rabbitmq.alert-routing-key}") String routingKey
     ) {
         this.rabbitTemplate = rabbitTemplate;
         this.objectMapper = objectMapper;

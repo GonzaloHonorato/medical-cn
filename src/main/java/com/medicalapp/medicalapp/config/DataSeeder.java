@@ -6,6 +6,7 @@ import com.medicalapp.medicalapp.model.Paciente;
 import com.medicalapp.medicalapp.repository.PacienteRepository;
 import com.medicalapp.medicalapp.service.MonitoreoMedicoService;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,6 +17,7 @@ import java.util.List;
 public class DataSeeder {
 
     @Bean
+    @ConditionalOnProperty(prefix = "medicalapp.seed", name = "enabled", havingValue = "true", matchIfMissing = true)
     CommandLineRunner seedPacientes(
             PacienteRepository pacienteRepository,
             MonitoreoMedicoService monitoreoMedicoService

@@ -22,7 +22,7 @@ public class EventoClinicoQueueConsumer {
         this.eventoClinicoService = eventoClinicoService;
     }
 
-    @RabbitListener(queues = "${medicalapp.rabbitmq.queue}")
+    @RabbitListener(queues = "${medicalapp.rabbitmq.alert-oracle-queue}")
     public void consumir(byte[] body) {
         try {
             String payload = new String(body, StandardCharsets.UTF_8);

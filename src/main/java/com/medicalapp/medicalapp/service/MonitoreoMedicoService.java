@@ -7,7 +7,6 @@ import com.medicalapp.medicalapp.dto.SignoVitalRequest;
 import com.medicalapp.medicalapp.dto.SignoVitalResponse;
 import com.medicalapp.medicalapp.model.AlertaMedica;
 import com.medicalapp.medicalapp.model.Paciente;
-import com.medicalapp.medicalapp.model.SeveridadAlerta;
 import com.medicalapp.medicalapp.model.SignoVital;
 import com.medicalapp.medicalapp.repository.AlertaMedicaRepository;
 import com.medicalapp.medicalapp.repository.PacienteRepository;
@@ -17,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -27,17 +25,20 @@ public class MonitoreoMedicoService {
     private final SignoVitalRepository signoVitalRepository;
     private final AlertaMedicaRepository alertaMedicaRepository;
     private final EventoClinicoService eventoClinicoService;
+    private final SignosVitalesAlertProducerService signosVitalesAlertProducerService;
 
     public MonitoreoMedicoService(
             PacienteRepository pacienteRepository,
             SignoVitalRepository signoVitalRepository,
             AlertaMedicaRepository alertaMedicaRepository,
-            EventoClinicoService eventoClinicoService
+            EventoClinicoService eventoClinicoService,
+            SignosVitalesAlertProducerService signosVitalesAlertProducerService
     ) {
         this.pacienteRepository = pacienteRepository;
         this.signoVitalRepository = signoVitalRepository;
         this.alertaMedicaRepository = alertaMedicaRepository;
         this.eventoClinicoService = eventoClinicoService;
+        this.signosVitalesAlertProducerService = signosVitalesAlertProducerService;
     }
 
     public DashboardResponse obtenerDashboard() {
@@ -86,7 +87,7 @@ public class MonitoreoMedicoService {
         );
 
         SignoVital guardada = signoVitalRepository.save(lectura);
-        generarAlertas(paciente, guardada);
+        signosVitalesAlertProducerService.publicarAlertas(paciente, guardada);
         return mapSignoVital(guardada);
     }
 
@@ -145,44 +146,6 @@ public class MonitoreoMedicoService {
                 alerta.getMensaje(),
                 alerta.getFechaRegistro()
         );
-    }
-
-    private void generarAlertas(Paciente paciente, SignoVital lectura) {
-        List<AlertaMedica> alertas = new ArrayList<>();
-        OffsetDateTime ahora = OffsetDateTime.now();
-
-        if (lectura.getSaturacionOxigeno() < 90) {
-            alertas.add(crearAlerta(paciente, "Saturacion critica", SeveridadAlerta.ALTA,
-                    "Saturacion bajo 90%. Requiere revision inmediata.", ahora));
-        }
-        if (lectura.getFrecuenciaCardiaca() < 45 || lectura.getFrecuenciaCardiaca() > 130) {
-            alertas.add(crearAlerta(paciente, "Frecuencia cardiaca critica", SeveridadAlerta.ALTA,
-                    "Frecuencia cardiaca fuera de rango critico.", ahora));
-        }
-        if (lectura.getPresionSistolica() < 90 || lectura.getPresionSistolica() > 180) {
-            alertas.add(crearAlerta(paciente, "Presion arterial critica", SeveridadAlerta.ALTA,
-                    "Presion sistolica fuera de rango critico.", ahora));
-        }
-        if (lectura.getTemperatura().compareTo(BigDecimal.valueOf(38.5)) >= 0) {
-            alertas.add(crearAlerta(paciente, "Fiebre alta", SeveridadAlerta.MEDIA,
-                    "Temperatura superior o igual a 38.5 C.", ahora));
-        }
-        if (lectura.getFrecuenciaRespiratoria() < 8 || lectura.getFrecuenciaRespiratoria() > 30) {
-            alertas.add(crearAlerta(paciente, "Frecuencia respiratoria anormal", SeveridadAlerta.MEDIA,
-                    "Frecuencia respiratoria fuera de rango esperado.", ahora));
-        }
-
-        alertaMedicaRepository.saveAll(alertas);
-    }
-
-    private AlertaMedica crearAlerta(
-            Paciente paciente,
-            String tipo,
-            SeveridadAlerta severidad,
-            String mensaje,
-            OffsetDateTime fecha
-    ) {
-        return new AlertaMedica(null, paciente, tipo, severidad, mensaje, fecha, false);
     }
 
     private void validarLectura(SignoVitalRequest request) {

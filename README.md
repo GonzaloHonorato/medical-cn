@@ -8,7 +8,7 @@ Sistema de alertas medicas en tiempo real para monitoreo de pacientes criticos.
 - BFF Spring Boot protegido por JWT en `/api/**`.
 - Proteccion API Manager configurable en el BFF. Para la entrega final se integrara con AWS API Gateway.
 - Persistencia Oracle para pacientes, signos vitales y alertas. Los usuarios viven en el IDaaS, no en Oracle.
-- Cola RabbitMQ para eventos clinicos asincronos consumidos por Spring Boot y notificados a Angular por WebSocket.
+- Cola RabbitMQ para alertas clinicas, resumenes asincronos, persistencia Oracle, archivos JSON de auditoria y notificaciones Angular por WebSocket.
 
 ## Endpoints BFF
 
@@ -16,7 +16,7 @@ Sistema de alertas medicas en tiempo real para monitoreo de pacientes criticos.
 - `GET /api/alertas`: lista de alertas abiertas.
 - `GET /api/eventos-clinicos`: lista de eventos clinicos recibidos desde RabbitMQ.
 - `PATCH /api/alertas/{id}/atender`: marca una alerta como atendida.
-- `POST /api/signos-vitales`: registra una lectura y genera alertas segun umbrales.
+- `POST /api/signos-vitales`: Productor 1. Registra una lectura, detecta anomalias y publica alertas en RabbitMQ.
 - `POST /public/eventos-clinicos`: productor publico que publica un evento en RabbitMQ.
 
 ## Desarrollo local
@@ -47,6 +47,14 @@ RABBITMQ_PASSWORD=medicalapp
 MEDICALAPP_RABBITMQ_QUEUE=medicalapp.eventos-clinicos
 MEDICALAPP_RABBITMQ_EXCHANGE=medicalapp.exchange
 MEDICALAPP_RABBITMQ_ROUTING_KEY=eventos.clinicos
+MEDICALAPP_RABBITMQ_ALERT_ORACLE_QUEUE=medicalapp.alertas.oracle
+MEDICALAPP_RABBITMQ_ALERT_FILE_QUEUE=medicalapp.alertas.archivos
+MEDICALAPP_RABBITMQ_ALERT_ROUTING_KEY=alertas.clinicas
+MEDICALAPP_RABBITMQ_SUMMARY_QUEUE=medicalapp.resumenes-signos
+MEDICALAPP_RABBITMQ_SUMMARY_ROUTING_KEY=resumenes.signos-vitales
+MEDICALAPP_ALERT_FILES_PATH=/app/hospital-alert-files
+MEDICALAPP_SUMMARY_SCHEDULER_ENABLED=true
+MEDICALAPP_SUMMARY_INTERVAL_MS=300000
 ```
 
 `MEDICALAPP_FRONTEND_API_BASE_URL` controla a que API llama Angular:
@@ -61,16 +69,72 @@ MEDICALAPP_RABBITMQ_ROUTING_KEY=eventos.clinicos
 Spring puede crear las tablas `MED_PACIENTES`, `MED_SIGNOS_VITALES`, `MED_ALERTAS` y `MED_EVENTOS_CLINICOS` con `spring.jpa.hibernate.ddl-auto=update`.
 Tambien se incluyen scripts explicitos en `database/schema.sql` y `database/seed.sql`.
 
-## RabbitMQ y WebSocket
+## RabbitMQ, productores y consumidores
 
 `docker-compose.yml` levanta RabbitMQ con consola en `http://localhost:15672`.
 Credenciales por defecto: `medicalapp / medicalapp`.
+
+Arquitectura de mensajeria:
+
+```text
+medicalapp.exchange
+
+routing key: alertas.clinicas
+  -> medicalapp.alertas.oracle
+  -> medicalapp.alertas.archivos
+
+routing key: resumenes.signos-vitales
+  -> medicalapp.resumenes-signos
+```
+
+### Productor 1: signos vitales
+
+`POST /api/signos-vitales` recibe lecturas de dispositivos medicos. Si detecta una lectura fuera de rango, publica una alerta en RabbitMQ con routing key `alertas.clinicas`.
+
+Payload de prueba:
+
+```json
+{
+  "pacienteId": 1,
+  "frecuenciaCardiaca": 136,
+  "presionSistolica": 86,
+  "presionDiastolica": 52,
+  "saturacionOxigeno": 88,
+  "temperatura": 39.1,
+  "frecuenciaRespiratoria": 32
+}
+```
+
+### Productor 2: resumen periodico
+
+`ResumenSignosVitalesProducerService` publica cada 5 minutos un resumen con pacientes activos y ultimas lecturas en la routing key `resumenes.signos-vitales`.
+
+El intervalo se controla con:
+
+```env
+MEDICALAPP_SUMMARY_INTERVAL_MS=300000
+MEDICALAPP_SUMMARY_SCHEDULER_ENABLED=true
+```
+
+### Consumidor 1: Oracle y WebSocket
+
+`EventoClinicoQueueConsumer` consume `medicalapp.alertas.oracle`, guarda el evento en `MED_EVENTOS_CLINICOS`, crea una alerta en `MED_ALERTAS` para severidades `ALTA` o `MEDIA`, y notifica a Angular por `/ws/eventos-clinicos`.
+
+### Consumidor 2: archivo JSON
+
+`EventoClinicoArchivoConsumer` consume `medicalapp.alertas.archivos` y genera un archivo `.json` en:
+
+```env
+MEDICALAPP_ALERT_FILES_PATH=/app/hospital-alert-files
+```
+
+En Docker esa ruta queda persistida por el volumen `medicalapp-alert-files`.
 
 Para probar desde la interfaz de RabbitMQ:
 
 1. Entrar a `Exchanges`.
 2. Seleccionar `medicalapp.exchange`.
-3. Publicar con routing key `eventos.clinicos`.
+3. Publicar con routing key `alertas.clinicas`.
 4. Usar un payload JSON como:
 
 ```json
@@ -85,7 +149,7 @@ Para probar desde la interfaz de RabbitMQ:
 }
 ```
 
-Spring Boot consume la cola `medicalapp.eventos-clinicos`, guarda el evento en Oracle y lo transmite a Angular por `/ws/eventos-clinicos`.
+Spring Boot consume las colas `medicalapp.alertas.oracle` y `medicalapp.alertas.archivos`: guarda el evento en Oracle, lo transmite a Angular por `/ws/eventos-clinicos` y genera un archivo JSON de auditoria.
 
 ### Productor HTTP publico
 
@@ -109,4 +173,13 @@ Flujo completo:
 
 ```text
 POST publico -> exchange -> cola -> @RabbitListener -> Oracle -> WebSocket -> Angular
+```
+
+Con la ampliacion de colas, el flujo de alertas queda:
+
+```text
+Dispositivo medico -> POST /api/signos-vitales -> Productor 1 -> RabbitMQ
+RabbitMQ -> Consumidor 1 -> Oracle + WebSocket -> Angular
+RabbitMQ -> Consumidor 2 -> archivo .json
+Productor 2 -> RabbitMQ -> consumidor de resumenes -> logs
 ```
