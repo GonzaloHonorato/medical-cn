@@ -29,6 +29,7 @@ public class SecurityConfig {
                                 "/",
                                 "/index.html",
                                 "/frontend-config.json",
+                                "/public/archivos-alertas",
                                 "/public/eventos-clinicos",
                                 "/public/signos-vitales",
                                 "/ws/eventos-clinicos",
