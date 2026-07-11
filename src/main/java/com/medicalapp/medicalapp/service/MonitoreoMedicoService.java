@@ -3,7 +3,9 @@ package com.medicalapp.medicalapp.service;
 import com.medicalapp.medicalapp.dto.AlertaResponse;
 import com.medicalapp.medicalapp.dto.DashboardResponse;
 import com.medicalapp.medicalapp.dto.EventoClinicoMessage;
+import com.medicalapp.medicalapp.dto.EventoPublicadoResponse;
 import com.medicalapp.medicalapp.dto.ResumenPacienteResponse;
+import com.medicalapp.medicalapp.dto.SenalVitalMessage;
 import com.medicalapp.medicalapp.dto.SignoVitalRequest;
 import com.medicalapp.medicalapp.dto.SignoVitalResponse;
 import com.medicalapp.medicalapp.model.AlertaMedica;
@@ -28,6 +30,7 @@ public class MonitoreoMedicoService {
     private final EventoClinicoService eventoClinicoService;
     private final DetectorAnomalias detectorAnomalias;
     private final AlertaKafkaProducer alertaKafkaProducer;
+    private final SenalVitalKafkaProducer senalVitalKafkaProducer;
 
     public MonitoreoMedicoService(
             PacienteRepository pacienteRepository,
@@ -35,7 +38,8 @@ public class MonitoreoMedicoService {
             AlertaMedicaRepository alertaMedicaRepository,
             EventoClinicoService eventoClinicoService,
             DetectorAnomalias detectorAnomalias,
-            AlertaKafkaProducer alertaKafkaProducer
+            AlertaKafkaProducer alertaKafkaProducer,
+            SenalVitalKafkaProducer senalVitalKafkaProducer
     ) {
         this.pacienteRepository = pacienteRepository;
         this.signoVitalRepository = signoVitalRepository;
@@ -43,6 +47,7 @@ public class MonitoreoMedicoService {
         this.eventoClinicoService = eventoClinicoService;
         this.detectorAnomalias = detectorAnomalias;
         this.alertaKafkaProducer = alertaKafkaProducer;
+        this.senalVitalKafkaProducer = senalVitalKafkaProducer;
     }
 
     public DashboardResponse obtenerDashboard() {
@@ -95,6 +100,37 @@ public class MonitoreoMedicoService {
             alertaKafkaProducer.enviar(alerta);
         }
         return mapSignoVital(guardada);
+    }
+
+    /**
+     * Endpoint publico: publica la lectura cruda en el topico "senales_vitales"
+     * para que la procese el microservicio de procesamiento (procesador -> alertas).
+     * Es asincrono: valida y encola, la persistencia la hace el procesador.
+     */
+    public EventoPublicadoResponse publicarSenalVital(SignoVitalRequest request) {
+        validarLectura(request);
+        Paciente paciente = pacienteRepository.findById(request.pacienteId())
+                .filter(Paciente::getActivo)
+                .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado o inactivo."));
+
+        SenalVitalMessage lectura = new SenalVitalMessage(
+                paciente.getId(),
+                request.frecuenciaCardiaca(),
+                request.presionSistolica(),
+                request.presionDiastolica(),
+                request.saturacionOxigeno(),
+                request.temperatura(),
+                request.frecuenciaRespiratoria(),
+                OffsetDateTime.now()
+        );
+
+        senalVitalKafkaProducer.enviar(lectura);
+        return new EventoPublicadoResponse(
+                "PUBLICADO",
+                senalVitalKafkaProducer.topic(),
+                String.valueOf(paciente.getId()),
+                OffsetDateTime.now()
+        );
     }
 
     @Transactional

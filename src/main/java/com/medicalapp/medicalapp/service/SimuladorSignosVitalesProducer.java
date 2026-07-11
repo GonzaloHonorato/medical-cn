@@ -1,14 +1,9 @@
 package com.medicalapp.medicalapp.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medicalapp.medicalapp.dto.SenalVitalMessage;
 import com.medicalapp.medicalapp.model.Paciente;
 import com.medicalapp.medicalapp.repository.PacienteRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -21,32 +16,24 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * Microservicio productor de señales vitales (Tarea 2).
  * Simula lecturas de dispositivos medicos para cada paciente activo a
- * intervalos regulares (cada segundo por defecto) y las publica en el
- * topico Kafka "senales_vitales". Un porcentaje de las lecturas se genera
- * fuera de rango para que el procesador dispare alertas.
+ * intervalos regulares y las publica en el topico Kafka "senales_vitales".
+ * Un porcentaje de las lecturas se genera fuera de rango para que el
+ * procesador dispare alertas.
  */
 @Service
 public class SimuladorSignosVitalesProducer {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SimuladorSignosVitalesProducer.class);
-
     private final PacienteRepository pacienteRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
-    private final String senalesTopic;
+    private final SenalVitalKafkaProducer senalVitalKafkaProducer;
     private final boolean enabled;
 
     public SimuladorSignosVitalesProducer(
             PacienteRepository pacienteRepository,
-            KafkaTemplate<String, String> kafkaTemplate,
-            ObjectMapper objectMapper,
-            @Value("${medicalapp.kafka.topic.senales-vitales}") String senalesTopic,
+            SenalVitalKafkaProducer senalVitalKafkaProducer,
             @Value("${medicalapp.simulator.enabled}") boolean enabled
     ) {
         this.pacienteRepository = pacienteRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
-        this.senalesTopic = senalesTopic;
+        this.senalVitalKafkaProducer = senalVitalKafkaProducer;
         this.enabled = enabled;
     }
 
@@ -58,7 +45,7 @@ public class SimuladorSignosVitalesProducer {
 
         List<Paciente> pacientes = pacienteRepository.findByActivoTrueOrderByHabitacionAsc();
         for (Paciente paciente : pacientes) {
-            publicar(generarLectura(paciente));
+            senalVitalKafkaProducer.enviar(generarLectura(paciente));
         }
     }
 
@@ -85,17 +72,6 @@ public class SimuladorSignosVitalesProducer {
                 frecuenciaRespiratoria,
                 OffsetDateTime.now()
         );
-    }
-
-    private void publicar(SenalVitalMessage lectura) {
-        try {
-            String key = String.valueOf(lectura.pacienteId());
-            String payload = objectMapper.writeValueAsString(lectura);
-            kafkaTemplate.send(senalesTopic, key, payload);
-            LOGGER.debug("Productor publico señal vital en '{}' para paciente {}", senalesTopic, lectura.pacienteId());
-        } catch (JsonProcessingException exception) {
-            throw new IllegalArgumentException("No se pudo convertir la señal vital a JSON.", exception);
-        }
     }
 
     private int aleatorioEntre(ThreadLocalRandom random, int min, int max) {
