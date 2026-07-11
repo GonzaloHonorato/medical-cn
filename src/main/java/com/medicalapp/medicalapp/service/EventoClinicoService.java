@@ -57,8 +57,8 @@ public class EventoClinicoService {
                 null,
                 paciente,
                 textoOValor(message.tipo(), "EVENTO_CLINICO"),
-                textoOValor(message.origen(), "RabbitMQ"),
-                textoOValor(message.mensaje(), "Evento clinico recibido desde la cola RabbitMQ."),
+                textoOValor(message.origen(), "Kafka"),
+                textoOValor(message.mensaje(), "Evento clinico recibido desde el topico Kafka de alertas."),
                 severidad,
                 textoOpcional(message.valor()),
                 message.fechaEvento() == null ? ahora : message.fechaEvento(),
@@ -80,7 +80,7 @@ public class EventoClinicoService {
         EventoClinicoResponse response = mapEvento(evento);
         webSocketHandler.broadcast(response);
         LOGGER.info(
-                "Evento clinico {} guardado desde RabbitMQ para paciente {} con severidad {}",
+                "Evento clinico {} guardado desde Kafka para paciente {} con severidad {}",
                 response.id(),
                 response.pacienteNombre(),
                 response.severidad()

@@ -9,9 +9,8 @@ import com.medicalapp.medicalapp.repository.PacienteRepository;
 import com.medicalapp.medicalapp.repository.SignoVitalRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.MessageProperties;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -26,27 +25,24 @@ public class ResumenSignosVitalesProducerService {
 
     private final PacienteRepository pacienteRepository;
     private final SignoVitalRepository signoVitalRepository;
-    private final RabbitTemplate rabbitTemplate;
+    private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
-    private final String exchange;
-    private final String summaryRoutingKey;
+    private final String resumenesTopic;
     private final boolean schedulerEnabled;
 
     public ResumenSignosVitalesProducerService(
             PacienteRepository pacienteRepository,
             SignoVitalRepository signoVitalRepository,
-            RabbitTemplate rabbitTemplate,
+            KafkaTemplate<String, String> kafkaTemplate,
             ObjectMapper objectMapper,
-            @Value("${medicalapp.rabbitmq.exchange}") String exchange,
-            @Value("${medicalapp.rabbitmq.summary-routing-key}") String summaryRoutingKey,
+            @Value("${medicalapp.kafka.topic.resumenes}") String resumenesTopic,
             @Value("${medicalapp.summary.scheduler-enabled}") boolean schedulerEnabled
     ) {
         this.pacienteRepository = pacienteRepository;
         this.signoVitalRepository = signoVitalRepository;
-        this.rabbitTemplate = rabbitTemplate;
+        this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
-        this.exchange = exchange;
-        this.summaryRoutingKey = summaryRoutingKey;
+        this.resumenesTopic = resumenesTopic;
         this.schedulerEnabled = schedulerEnabled;
     }
 
@@ -102,13 +98,10 @@ public class ResumenSignosVitalesProducerService {
     private void publicar(ResumenSignosVitalesMessage message) {
         try {
             String payload = objectMapper.writeValueAsString(message);
-            rabbitTemplate.convertAndSend(exchange, summaryRoutingKey, payload, rabbitMessage -> {
-                rabbitMessage.getMessageProperties().setContentType(MessageProperties.CONTENT_TYPE_JSON);
-                rabbitMessage.getMessageProperties().setContentEncoding("UTF-8");
-                return rabbitMessage;
-            });
+            kafkaTemplate.send(resumenesTopic, payload);
             LOGGER.info(
-                    "Productor 2 publico resumen de signos vitales. pacientesActivos={}, lecturasIncluidas={}",
+                    "Productor de resumenes publico en '{}'. pacientesActivos={}, lecturasIncluidas={}",
+                    resumenesTopic,
                     message.pacientesActivos(),
                     message.lecturasIncluidas()
             );

@@ -4,8 +4,8 @@ import java.time.OffsetDateTime;
 
 public record EventoPublicadoResponse(
         String estado,
-        String exchange,
-        String routingKey,
+        String topico,
+        String clave,
         OffsetDateTime fechaPublicacion
 ) {
 }

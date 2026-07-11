@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medicalapp.medicalapp.dto.EventoClinicoMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -16,16 +16,22 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
+/**
+ * Microservicio de alerta (Tarea 2) - consumidor de auditoria en archivo.
+ * Segundo consumer group sobre el topico "alertas": genera un archivo JSON
+ * de auditoria por cada alerta recibida. Reproduce el fan-out que antes hacian
+ * las dos colas de RabbitMQ.
+ */
 @Service
-public class EventoClinicoArchivoConsumer {
+public class AlertasArchivoConsumer {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(EventoClinicoArchivoConsumer.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AlertasArchivoConsumer.class);
     private static final DateTimeFormatter FILE_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
 
     private final ObjectMapper objectMapper;
     private final Path alertFilesPath;
 
-    public EventoClinicoArchivoConsumer(
+    public AlertasArchivoConsumer(
             ObjectMapper objectMapper,
             @Value("${medicalapp.alert-files.path}") String alertFilesPath
     ) {
@@ -33,17 +39,22 @@ public class EventoClinicoArchivoConsumer {
         this.alertFilesPath = Path.of(alertFilesPath);
     }
 
-    @RabbitListener(queues = "${medicalapp.rabbitmq.alert-file-queue}")
-    public void consumir(byte[] body) {
+    @KafkaListener(
+            topics = "${medicalapp.kafka.topic.alertas}",
+            groupId = "${medicalapp.kafka.group.alerta-archivos:alerta-archivos}"
+    )
+    public void consumir(String payload) {
         try {
-            EventoClinicoMessage message = objectMapper.readValue(body, EventoClinicoMessage.class);
+            EventoClinicoMessage message = objectMapper.readValue(payload, EventoClinicoMessage.class);
             Files.createDirectories(alertFilesPath);
             Path file = alertFilesPath.resolve(nombreArchivo(message));
             String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(message);
             Files.writeString(file, json, StandardCharsets.UTF_8);
-            LOGGER.info("Consumidor 2 genero archivo JSON de alerta medica: {}", file);
+            LOGGER.info("Consumidor de archivos genero JSON de alerta medica: {}", file);
         } catch (IOException exception) {
             throw new IllegalArgumentException("No se pudo generar archivo JSON para la alerta medica.", exception);
+        } catch (Exception exception) {
+            throw new IllegalArgumentException("Mensaje Kafka invalido para el topico de alertas.", exception);
         }
     }
 

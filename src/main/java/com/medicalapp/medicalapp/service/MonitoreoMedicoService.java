@@ -2,6 +2,7 @@ package com.medicalapp.medicalapp.service;
 
 import com.medicalapp.medicalapp.dto.AlertaResponse;
 import com.medicalapp.medicalapp.dto.DashboardResponse;
+import com.medicalapp.medicalapp.dto.EventoClinicoMessage;
 import com.medicalapp.medicalapp.dto.ResumenPacienteResponse;
 import com.medicalapp.medicalapp.dto.SignoVitalRequest;
 import com.medicalapp.medicalapp.dto.SignoVitalResponse;
@@ -25,20 +26,23 @@ public class MonitoreoMedicoService {
     private final SignoVitalRepository signoVitalRepository;
     private final AlertaMedicaRepository alertaMedicaRepository;
     private final EventoClinicoService eventoClinicoService;
-    private final SignosVitalesAlertProducerService signosVitalesAlertProducerService;
+    private final DetectorAnomalias detectorAnomalias;
+    private final AlertaKafkaProducer alertaKafkaProducer;
 
     public MonitoreoMedicoService(
             PacienteRepository pacienteRepository,
             SignoVitalRepository signoVitalRepository,
             AlertaMedicaRepository alertaMedicaRepository,
             EventoClinicoService eventoClinicoService,
-            SignosVitalesAlertProducerService signosVitalesAlertProducerService
+            DetectorAnomalias detectorAnomalias,
+            AlertaKafkaProducer alertaKafkaProducer
     ) {
         this.pacienteRepository = pacienteRepository;
         this.signoVitalRepository = signoVitalRepository;
         this.alertaMedicaRepository = alertaMedicaRepository;
         this.eventoClinicoService = eventoClinicoService;
-        this.signosVitalesAlertProducerService = signosVitalesAlertProducerService;
+        this.detectorAnomalias = detectorAnomalias;
+        this.alertaKafkaProducer = alertaKafkaProducer;
     }
 
     public DashboardResponse obtenerDashboard() {
@@ -87,7 +91,9 @@ public class MonitoreoMedicoService {
         );
 
         SignoVital guardada = signoVitalRepository.save(lectura);
-        signosVitalesAlertProducerService.publicarAlertas(paciente, guardada);
+        for (EventoClinicoMessage alerta : detectorAnomalias.detectar(paciente, guardada)) {
+            alertaKafkaProducer.enviar(alerta);
+        }
         return mapSignoVital(guardada);
     }
 

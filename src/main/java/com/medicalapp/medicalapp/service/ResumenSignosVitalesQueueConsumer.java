@@ -2,19 +2,23 @@ package com.medicalapp.medicalapp.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-
+/**
+ * Consumidor del topico "resumenes-signos".
+ * Registra en logs los resumenes periodicos publicados por el productor de resumenes.
+ */
 @Service
 public class ResumenSignosVitalesQueueConsumer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ResumenSignosVitalesQueueConsumer.class);
 
-    @RabbitListener(queues = "${medicalapp.rabbitmq.summary-queue}")
-    public void consumir(byte[] body) {
-        String payload = new String(body, StandardCharsets.UTF_8);
-        LOGGER.info("Consumidor de resumenes recibio mensaje desde RabbitMQ: {}", payload);
+    @KafkaListener(
+            topics = "${medicalapp.kafka.topic.resumenes}",
+            groupId = "${medicalapp.kafka.group.resumenes:resumenes}"
+    )
+    public void consumir(String payload) {
+        LOGGER.info("Consumidor de resumenes recibio mensaje desde Kafka: {}", payload);
     }
 }

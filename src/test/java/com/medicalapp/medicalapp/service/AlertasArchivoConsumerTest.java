@@ -15,7 +15,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class EventoClinicoArchivoConsumerTest {
+class AlertasArchivoConsumerTest {
 
     @TempDir
     Path tempDir;
@@ -24,7 +24,7 @@ class EventoClinicoArchivoConsumerTest {
 
     @Test
     void generaArchivoJsonConElMensajeConsumido() throws Exception {
-        EventoClinicoArchivoConsumer consumer = new EventoClinicoArchivoConsumer(objectMapper, tempDir.toString());
+        AlertasArchivoConsumer consumer = new AlertasArchivoConsumer(objectMapper, tempDir.toString());
         EventoClinicoMessage message = new EventoClinicoMessage(
                 1L,
                 "SATURACION_CRITICA",
@@ -35,7 +35,7 @@ class EventoClinicoArchivoConsumerTest {
                 OffsetDateTime.parse("2026-06-25T12:00:00-04:00")
         );
 
-        consumer.consumir(objectMapper.writeValueAsBytes(message));
+        consumer.consumir(objectMapper.writeValueAsString(message));
 
         List<Path> files = Files.list(tempDir).toList();
         assertThat(files).hasSize(1);

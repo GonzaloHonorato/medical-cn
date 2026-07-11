@@ -8,8 +8,7 @@ import com.medicalapp.medicalapp.model.SignoVital;
 import com.medicalapp.medicalapp.repository.PacienteRepository;
 import com.medicalapp.medicalapp.repository.SignoVitalRepository;
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.core.MessagePostProcessor;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -17,7 +16,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -28,15 +26,15 @@ class ResumenSignosVitalesProducerServiceTest {
 
     private final PacienteRepository pacienteRepository = mock(PacienteRepository.class);
     private final SignoVitalRepository signoVitalRepository = mock(SignoVitalRepository.class);
-    private final RabbitTemplate rabbitTemplate = mock(RabbitTemplate.class);
+    @SuppressWarnings("unchecked")
+    private final KafkaTemplate<String, String> kafkaTemplate = mock(KafkaTemplate.class);
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
     private final ResumenSignosVitalesProducerService service = new ResumenSignosVitalesProducerService(
             pacienteRepository,
             signoVitalRepository,
-            rabbitTemplate,
+            kafkaTemplate,
             objectMapper,
-            "medicalapp.exchange",
-            "resumenes.signos-vitales",
+            "resumenes-signos",
             true
     );
 
@@ -50,12 +48,7 @@ class ResumenSignosVitalesProducerServiceTest {
         service.publicarResumenProgramado();
 
         ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
-        verify(rabbitTemplate).convertAndSend(
-                eq("medicalapp.exchange"),
-                eq("resumenes.signos-vitales"),
-                payloadCaptor.capture(),
-                any(MessagePostProcessor.class)
-        );
+        verify(kafkaTemplate).send(eq("resumenes-signos"), payloadCaptor.capture());
         ResumenSignosVitalesMessage message = objectMapper.readValue(
                 payloadCaptor.getValue(),
                 ResumenSignosVitalesMessage.class

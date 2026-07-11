@@ -1,59 +1,24 @@
 package com.medicalapp.medicalapp.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medicalapp.medicalapp.dto.EventoClinicoMessage;
 import com.medicalapp.medicalapp.model.Paciente;
 import com.medicalapp.medicalapp.model.SeveridadAlerta;
 import com.medicalapp.medicalapp.model.SignoVital;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.MessageProperties;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
-@Service
-public class SignosVitalesAlertProducerService {
+/**
+ * Reglas de deteccion de anomalias en señales vitales.
+ * Se comparte entre el procesador Kafka (topico senales_vitales -> alertas)
+ * y el registro directo por HTTP, para no duplicar los umbrales clinicos.
+ */
+@Component
+public class DetectorAnomalias {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SignosVitalesAlertProducerService.class);
-
-    private final RabbitTemplate rabbitTemplate;
-    private final ObjectMapper objectMapper;
-    private final String exchange;
-    private final String alertRoutingKey;
-
-    public SignosVitalesAlertProducerService(
-            RabbitTemplate rabbitTemplate,
-            ObjectMapper objectMapper,
-            @Value("${medicalapp.rabbitmq.exchange}") String exchange,
-            @Value("${medicalapp.rabbitmq.alert-routing-key}") String alertRoutingKey
-    ) {
-        this.rabbitTemplate = rabbitTemplate;
-        this.objectMapper = objectMapper;
-        this.exchange = exchange;
-        this.alertRoutingKey = alertRoutingKey;
-    }
-
-    public void publicarAlertas(Paciente paciente, SignoVital lectura) {
-        List<EventoClinicoMessage> alertas = detectarAlertas(paciente, lectura);
-        for (EventoClinicoMessage alerta : alertas) {
-            publicar(alerta);
-        }
-        if (!alertas.isEmpty()) {
-            LOGGER.info(
-                    "Productor 1 publico {} alerta(s) clinica(s) en RabbitMQ para paciente {}",
-                    alertas.size(),
-                    paciente.getId()
-            );
-        }
-    }
-
-    private List<EventoClinicoMessage> detectarAlertas(Paciente paciente, SignoVital lectura) {
+    public List<EventoClinicoMessage> detectar(Paciente paciente, SignoVital lectura) {
         List<EventoClinicoMessage> alertas = new ArrayList<>();
         if (lectura.getSaturacionOxigeno() < 90) {
             alertas.add(crearMensaje(
@@ -125,18 +90,5 @@ public class SignosVitalesAlertProducerService {
                 valor,
                 lectura.getFechaRegistro()
         );
-    }
-
-    private void publicar(EventoClinicoMessage alerta) {
-        try {
-            String payload = objectMapper.writeValueAsString(alerta);
-            rabbitTemplate.convertAndSend(exchange, alertRoutingKey, payload, rabbitMessage -> {
-                rabbitMessage.getMessageProperties().setContentType(MessageProperties.CONTENT_TYPE_JSON);
-                rabbitMessage.getMessageProperties().setContentEncoding("UTF-8");
-                return rabbitMessage;
-            });
-        } catch (JsonProcessingException exception) {
-            throw new IllegalArgumentException("No se pudo convertir la alerta clinica a JSON.", exception);
-        }
     }
 }

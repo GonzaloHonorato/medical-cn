@@ -1,27 +1,98 @@
 services:
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: medicalapp-rabbitmq
+  kafka-1:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: medicalapp-kafka-1
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-medicalapp}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-medicalapp}
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka-1-data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 20s
+      start_period: 30s
+
+  kafka-2:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: medicalapp-kafka-2
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 2
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka-2-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  kafka-3:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: medicalapp-kafka-3
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 3
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka-3-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   medicalapp:
     build: .
     container_name: medicalapp
     restart: unless-stopped
     depends_on:
-      rabbitmq:
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
         condition: service_healthy
     environment:
       SERVER_PORT: 8080
@@ -38,18 +109,14 @@ services:
       MEDICALAPP_FRONTEND_API_BASE_URL: ${MEDICALAPP_FRONTEND_API_BASE_URL:-}
       MEDICALAPP_AUTH_SCOPES: ${MEDICALAPP_AUTH_SCOPES:-openid profile}
       ORACLE_WALLET_BASE64: ${ORACLE_WALLET_BASE64}
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-medicalapp}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-medicalapp}
-      MEDICALAPP_RABBITMQ_QUEUE: ${MEDICALAPP_RABBITMQ_QUEUE:-medicalapp.eventos-clinicos}
-      MEDICALAPP_RABBITMQ_EXCHANGE: ${MEDICALAPP_RABBITMQ_EXCHANGE:-medicalapp.exchange}
-      MEDICALAPP_RABBITMQ_ROUTING_KEY: ${MEDICALAPP_RABBITMQ_ROUTING_KEY:-eventos.clinicos}
-      MEDICALAPP_RABBITMQ_ALERT_ORACLE_QUEUE: ${MEDICALAPP_RABBITMQ_ALERT_ORACLE_QUEUE:-medicalapp.alertas.oracle}
-      MEDICALAPP_RABBITMQ_ALERT_FILE_QUEUE: ${MEDICALAPP_RABBITMQ_ALERT_FILE_QUEUE:-medicalapp.alertas.archivos}
-      MEDICALAPP_RABBITMQ_ALERT_ROUTING_KEY: ${MEDICALAPP_RABBITMQ_ALERT_ROUTING_KEY:-alertas.clinicas}
-      MEDICALAPP_RABBITMQ_SUMMARY_QUEUE: ${MEDICALAPP_RABBITMQ_SUMMARY_QUEUE:-medicalapp.resumenes-signos}
-      MEDICALAPP_RABBITMQ_SUMMARY_ROUTING_KEY: ${MEDICALAPP_RABBITMQ_SUMMARY_ROUTING_KEY:-resumenes.signos-vitales}
+      KAFKA_BOOTSTRAP_SERVERS: kafka-1:9092,kafka-2:9092,kafka-3:9092
+      KAFKA_REPLICATION_FACTOR: ${KAFKA_REPLICATION_FACTOR:-3}
+      KAFKA_PARTITIONS: ${KAFKA_PARTITIONS:-3}
+      MEDICALAPP_KAFKA_TOPIC_SENALES: ${MEDICALAPP_KAFKA_TOPIC_SENALES:-senales_vitales}
+      MEDICALAPP_KAFKA_TOPIC_ALERTAS: ${MEDICALAPP_KAFKA_TOPIC_ALERTAS:-alertas}
+      MEDICALAPP_KAFKA_TOPIC_RESUMENES: ${MEDICALAPP_KAFKA_TOPIC_RESUMENES:-resumenes-signos}
+      MEDICALAPP_SIMULATOR_ENABLED: ${MEDICALAPP_SIMULATOR_ENABLED:-true}
+      MEDICALAPP_SIMULATOR_INTERVAL_MS: ${MEDICALAPP_SIMULATOR_INTERVAL_MS:-1000}
       MEDICALAPP_ALERT_FILES_PATH: ${MEDICALAPP_ALERT_FILES_PATH:-/app/hospital-alert-files}
       MEDICALAPP_SUMMARY_SCHEDULER_ENABLED: ${MEDICALAPP_SUMMARY_SCHEDULER_ENABLED:-true}
       MEDICALAPP_SUMMARY_INTERVAL_MS: ${MEDICALAPP_SUMMARY_INTERVAL_MS:-300000}
@@ -73,3 +140,6 @@ services:
 
 volumes:
   medicalapp-alert-files:
+  kafka-1-data:
+  kafka-2-data:
+  kafka-3-data:

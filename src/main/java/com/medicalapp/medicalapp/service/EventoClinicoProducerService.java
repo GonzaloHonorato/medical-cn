@@ -1,38 +1,27 @@
 package com.medicalapp.medicalapp.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medicalapp.medicalapp.dto.EventoClinicoMessage;
 import com.medicalapp.medicalapp.dto.EventoPublicadoResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.MessageProperties;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 
+/**
+ * Productor HTTP publico de eventos clinicos.
+ * Recibe un evento desde el endpoint publico, lo normaliza y lo publica en el
+ * topico Kafka "alertas" (mismo camino que las anomalias del procesador).
+ */
 @Service
 public class EventoClinicoProducerService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EventoClinicoProducerService.class);
 
-    private final RabbitTemplate rabbitTemplate;
-    private final ObjectMapper objectMapper;
-    private final String exchange;
-    private final String routingKey;
+    private final AlertaKafkaProducer alertaKafkaProducer;
 
-    public EventoClinicoProducerService(
-            RabbitTemplate rabbitTemplate,
-            ObjectMapper objectMapper,
-            @Value("${medicalapp.rabbitmq.exchange}") String exchange,
-            @Value("${medicalapp.rabbitmq.alert-routing-key}") String routingKey
-    ) {
-        this.rabbitTemplate = rabbitTemplate;
-        this.objectMapper = objectMapper;
-        this.exchange = exchange;
-        this.routingKey = routingKey;
+    public EventoClinicoProducerService(AlertaKafkaProducer alertaKafkaProducer) {
+        this.alertaKafkaProducer = alertaKafkaProducer;
     }
 
     public EventoPublicadoResponse publicar(EventoClinicoMessage request) {
@@ -48,24 +37,15 @@ public class EventoClinicoProducerService {
                 request.fechaEvento() == null ? ahora : request.fechaEvento()
         );
 
-        try {
-            String payload = objectMapper.writeValueAsString(message);
-            rabbitTemplate.convertAndSend(exchange, routingKey, payload, rabbitMessage -> {
-                rabbitMessage.getMessageProperties().setContentType(MessageProperties.CONTENT_TYPE_JSON);
-                rabbitMessage.getMessageProperties().setContentEncoding("UTF-8");
-                return rabbitMessage;
-            });
-            LOGGER.info(
-                    "Evento clinico publicado en RabbitMQ. exchange={}, routingKey={}, pacienteId={}, tipo={}",
-                    exchange,
-                    routingKey,
-                    message.pacienteId(),
-                    message.tipo()
-            );
-            return new EventoPublicadoResponse("PUBLICADO", exchange, routingKey, ahora);
-        } catch (JsonProcessingException exception) {
-            throw new IllegalArgumentException("No se pudo convertir el evento clinico a JSON.", exception);
-        }
+        alertaKafkaProducer.enviar(message);
+        LOGGER.info(
+                "Evento clinico publicado en Kafka. topic={}, pacienteId={}, tipo={}",
+                alertaKafkaProducer.topic(),
+                message.pacienteId(),
+                message.tipo()
+        );
+        String clave = message.pacienteId() == null ? null : String.valueOf(message.pacienteId());
+        return new EventoPublicadoResponse("PUBLICADO", alertaKafkaProducer.topic(), clave, ahora);
     }
 
     private void validar(EventoClinicoMessage request) {
